@@ -80,6 +80,7 @@ async function processSalesOrder(input) {
 
   const insertResult = await pool.query(query2, values2);
 
+  const upstream_uuid = insertResult.rows[0].uuid;
   //INPUT FORMMATED SKU
    if (Array.isArray(input.skuList)) {
     for (const sku of input.skuList) {
@@ -90,7 +91,7 @@ async function processSalesOrder(input) {
         VALUES ($1, $2, $3, $4, $5, $6, $7);
         `,
         [
-          insertResult.rows[0].uuid,
+          upstream_uuid,
           input.onlineOrderNumber,
           input.appId,
           sku.sku,
@@ -119,7 +120,8 @@ async function processSalesOrder(input) {
 async function createReq(data, skuList){
   try{
 
-    // console.log (data);
+    const uuid = data.uuid;
+    // console.log (" DATA =", uuid);
     // return;
     // INSERT INTO so_sku_list
     try {
@@ -259,7 +261,7 @@ async function createReq(data, skuList){
     };
 
 
-    return await reqToERP(baseReq);
+    return await reqToERP(baseReq, uuid);
 
   } catch (err) {
     console.error("❌ Error in reqToERP:", err.message);
@@ -268,7 +270,7 @@ async function createReq(data, skuList){
 
 }
 
-async function reqToERP(data) {
+async function reqToERP(data, uuid) {
 
   // console.log("data = ", data);
   // return;
@@ -297,7 +299,7 @@ async function reqToERP(data) {
         state: 'success',
         errorCode: '',
         errorMsg: '',
-        bizContent: '{"notSuccess":false,"result":{"buyer":{"address1":"My House 01","address2":"","buyerId":"","city":"PETALING JAYA","country":"MY","district":"","email":"","isDeleted":0,"phone":"0101010","postCode":"47800","province":"SELANGOR","receiverName":"Ezzah"},"buyerPaidShippingFee":0,"codPayAmount":666.0000,"createTime":1758789261000,"currency":"MYR","finalProductProtection":0,"forceSys":true,"freight":0.0000,"isAFN":0,"isDeleted":0,"isSys":false,"onlineOrderNumber":"4444","onlineStatus":"WAIT_AUDIT","orderNumber":"HE2509252712016","payTime":1756964761000,"paymentMethod":"COD","platform":"INDEPENDENT","platformRebate":0,"platformRebateForWook":0,"platformReturnToSeller":0,"returnGiftFlag":false,"returnSnList":false,"sellerDiscount":0,"sellerDiscountForWook":0,"shop":"AFM-IT-API-TEST","shopId":285633,"skuList":[{"discountPrice":0,"onlineItemId":"7960858","onlineProductCode":"HENG-ITEM-1","onlineProductTitle":"test item 1","onlineTransactionId":"5556666","orderSkuId":1928032245,"originalPrice":0,"payAmount":5.0000,"paymentPrice":0,"platformDiscount":0,"promotionDiscount":0.0000,"quantity":36,"shippingPrice":0.0000,"sku":"HENG-ITEM-1","subSkuList":[],"tag":{"allReturned":0,"hasRefund":0,"isGift":0,"onlineShipped":0,"preSale":0},"totalDiscount":0.0000,"totalTax":0.0000}],"status":"WAIT_AUDIT","tag":{"allRefund":0,"allReturned":0,"consolidated":0,"hasRefund":0,"itemReturned":0,"locked":0,"onlineShipFeedbackAlready":0,"onlineShipFeedbackFailed":0,"onlineShipped":0,"outOfStock":0,"partRefund":0,"partReturned":0,"platformFulfillment":0,"preSale":0,"reShip":0,"sampleOrder":0,"sendFailed":0,"sendWms":0,"split":0},"totalAmount":5.0000,"totalDiscount":0,"updateTime":1758789261000},"state":"success"}',
+        bizContent: '{"notSuccess":false,"result":{"buyer":{"address1":"My House 01","address2":"","buyerId":"","city":"PETALING JAYA","country":"MY","district":"","email":"","isDeleted":0,"phone":"0101010","postCode":"47800","province":"SELANGOR","receiverName":"Ezzah"},"buyerPaidShippingFee":0,"codPayAmount":666.0,"createTime":1758789261000,"currency":"MYR","finalProductProtection":0,"forceSys":true,"freight":0.0,"isAFN":0,"isDeleted":0,"isSys":false,"onlineOrderNumber":"4444","onlineStatus":"WAIT_AUDIT","orderNumber":"HE2509252712016","payTime":1756964761000,"paymentMethod":"COD","platform":"INDEPENDENT","platformRebate":0,"platformRebateForWook":0,"platformReturnToSeller":0,"returnGiftFlag":false,"returnSnList":false,"sellerDiscount":0,"sellerDiscountForWook":0,"shop":"AFM-IT-API-TEST","shopId":285633,"skuList":[{"discountPrice":0,"onlineItemId":"10000","onlineProductCode":"HENG-ITEM-1","onlineProductTitle":"test item 1","onlineTransactionId":"5556666","orderSkuId":1928032245,"originalPrice":0,"payAmount":5.0,"paymentPrice":0,"platformDiscount":0,"promotionDiscount":0.0,"quantity":36,"shippingPrice":0.0,"sku":"HENG-ITEM-1","subSkuList":[],"tag":{"allReturned":0,"hasRefund":0,"isGift":0,"onlineShipped":0,"preSale":0},"totalDiscount":0.0,"totalTax":0.0},{"discountPrice":0,"onlineItemId":"900900","onlineProductCode":"HENG-ITEM-2","onlineProductTitle":"test item 2","onlineTransactionId":"5556666","orderSkuId":1928032245,"originalPrice":0,"payAmount":5.0,"paymentPrice":0,"platformDiscount":0,"promotionDiscount":0.0,"quantity":36,"shippingPrice":0.0,"sku":"HENG-ITEM-2","subSkuList":[],"tag":{"allReturned":0,"hasRefund":0,"isGift":0,"onlineShipped":0,"preSale":0},"totalDiscount":0.0,"totalTax":0.0}],"status":"WAIT_AUDIT","tag":{"allRefund":0,"allReturned":0,"consolidated":0,"hasRefund":0,"itemReturned":0,"locked":0,"onlineShipFeedbackAlready":0,"onlineShipFeedbackFailed":0,"onlineShipped":0,"outOfStock":0,"partRefund":0,"partReturned":0,"platformFulfillment":0,"preSale":0,"reShip":0,"sampleOrder":0,"sendFailed":0,"sendWms":0,"split":0},"totalAmount":5.0,"totalDiscount":0,"updateTime":1758789261000},"state":"success"}',
         requestId: '7e6a7a61-4f68-4513-8f49-3227761df2b2'
       }
     }
@@ -349,114 +351,95 @@ async function reqToERP(data) {
        WHERE uuid = $6;
      `;
 
-   let baseResVal = [
-     response.data.state,
-     response.data.errorCode,
-     response.data.errorMsg,
-     response.data.bizContent,
-     getCurrentDateTime(),
-     data.uuid
-   ];
+    let baseResVal = [
+      response.data.state,
+      response.data.errorCode,
+      response.data.errorMsg,
+      response.data.bizContent,
+      getCurrentDateTime(),
+      data.uuid
+    ];
 
-   await pool.query(baseRes, baseResVal);
+    await pool.query(baseRes, baseResVal);
 
-   let a = JSON.parse(response.data.bizContent);
-   console.log(" array =", a["result"]);
-   
-   
-   
-   if (a["notSuccess"] == false){ //  0 & 0
-    const newData = toLowerCaseKeys(a["result"]);
-    console.log(" newData = ", newData);
+    let a = JSON.parse(response.data.bizContent);
+    //  console.log(" array =", a["result"]);
+    
+
+    if (a["notSuccess"] == false){ //  0 & 0
+
+      const newData = toLowerCaseKeys(a["result"]);
+
+      try{
+
+        // INSERT INTO so_bizcontent_result
+        await dynamicInsert(pool, 'so_bizcontent_result', {
+          base_req_uuid: data.uuid,
+          ...newData,
+          buyer: JSON.stringify(newData.buyer ?? {}),
+          skulist: JSON.stringify(newData.skulist ?? []),
+          tag: JSON.stringify(newData.tag ?? {}),
+          ordercustomfieldvaluevolist: JSON.stringify(newData.ordercustomfieldvaluevolist ?? []),
+          subordernumberlist: JSON.stringify(newData.subordernumberlist ?? [])
+        });
+
+        const onlineordernumber = a.result.onlineOrderNumber;
+
+        // INSERT INTO so_result_tag
+        await dynamicInsert(pool, 'so_result_tag', {onlineordernumber, ...newData.tag});
 
 
-    try{
+        //  SKULIST CAN LOOP THRU TO INSERT
+        const res = await pool.query(
+          `SELECT column_name
+            FROM information_schema.columns
+            WHERE  table_name   = $1`,
+          ['so_result_sku']
+        );
 
-      // INSERT INTO Sso_bizcontent_result
+        const skulist = toLowerCaseKeys(a.result.skuList);
 
-      const bizContent = `
-        INSERT INTO so_bizcontent_result (
-          ordernumber, base_req_uuid, parentordernumber, isoriginalorder,
-          onlineordernumber, shop, warehouse, status, wmsstatus,
-          currency, totalamount, freight, buyermessage, sellerremarks,
-          carries, platform, updatetime, trackingnumber, paytime,
-          shippingtime, createtime, buyer, estimatefulfillmentfee, totaldiscount,
-          sellerdiscount, platformrebate, buyerpaidshippingfee, finalproductprotection, sellerdiscountforwook,
-          platformrebateforwook, audittime, latestshipdate, skulist, tag,
-          platformreturntoseller, isbusinessorder, salesrecordnumber, sitecode, isafn,
-          platformshippingtime, paymentmethod, isdeleted, ordercustomfieldvaluevolist, subordernumberlist,
-          onlinestatus, codpayamount
-        ) VALUES (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
-          $11,$12,$13,$14,$15,$16,$17,$18,$19,$20,
-          $21,$22::jsonb,$23,$24,$25,$26,$27,$28,$29,$30,
-          $31,$32,$33::jsonb,$34::jsonb,$35,$36,$37,$38,$39,$40,
-          $41,$42,$43::jsonb,$44::jsonb,$45,$46
-        )`;
+        for (const skuItem of skulist) {
 
-      const bizValues = [
-        newData.ordernumber,
-        data.uuid,
-        newData.parentordernumber,
-        newData.isoriginalorder,
-        newData.onlineordernumber,
-        newData.shop,
-        newData.warehouse,
-        newData.status,
-        newData.wmsstatus,
-        newData.currency,
-        newData.totalamount,
-        newData.freight,
-        newData.buyermessage,
-        newData.sellerremarks,
-        newData.carries,
-        newData.platform,
-        newData.updatetime,
-        newData.trackingnumber,
-        newData.paytime,
-        newData.shippingtime,
-        newData.createtime,
-        JSON.stringify(newData.buyer, '{}'),                // $22
-        newData.estimatefulfillmentfee,
-        newData.totaldiscount,
-        newData.sellerdiscount,
-        newData.platformrebate,
-        newData.buyerpaidshippingfee,
-        newData.finalproductprotection,
-        newData.sellerdiscountforwook,
-        newData.platformrebateforwook,
-        newData.audittime,
-        newData.latestshipdate,
-        JSON.stringify(newData.skulist, '[]'),              // $33
-        JSON.stringify(newData.tag, '{}'),                  // $34
-        newData.platformreturntoseller,
-        newData.isbusinessorder,
-        newData.salesrecordnumber,
-        newData.sitecode,
-        newData.isafn,
-        newData.platformshippingtime,
-        newData.paymentmethod,
-        newData.isdeleted,
-        JSON.stringify(newData.ordercustomfieldvaluevolist, '[]'), // $43
-        JSON.stringify(newData.subordernumberlist, '[]'),          // $44
-        newData.onlinestatus, 
-        newData.codpayamount
-        
+          // add onlineordernumber into the object
+          skuItem.onlineordernumber = onlineordernumber;
+
+          // 2a. Insert SKU row into so_result_sku
+          const insertedSku = await dynamicInsert(pool, 'so_result_sku', skuItem);
+
+          if (insertedSku) {
+            const onlineordernumber = insertedSku.onlineordernumber;
+
+            // 2b. Insert tag row(s) into so_result_skutag
+            if (skuItem.tag) {
+              const tagData = { onlineordernumber, ...skuItem.tag };
+              await dynamicInsert(pool, 'so_result_skutag', tagData);
+            }
+          }
+        }
+
+      }catch (err) {
+        console.error('Error inserting into bizContent:', err.response ? err.response.data : err.message);
+      }
+
+
+      const upstreamQue = `
+        UPDATE so_upstream_input_formatted
+        SET state = $1,
+            responsecode = $2,
+            response_date = $3
+        WHERE uuid = $4;
+      `;
+
+      let upstreamVal = [
+        "success",
+        "0",
+        getCurrentDateTime(),
+        uuid
       ];
 
-      await pool.query(bizContent, bizValues);
+      await pool.query(upstreamQue, upstreamVal);
 
-
-
-
-      //  SKULIST CAN LOOP THRU TO INSERT
-
-      
-
-
-    }catch (err) {
-      console.error('Error inserting into bizContent:', err.response ? err.response.data : err.message);
-    }
 
     } else {  //0 & 1
       console.log("false");
@@ -465,10 +448,10 @@ async function reqToERP(data) {
 
     };
 
-    // console.log('ERP response:', response.data);
-  } catch (err) {
-    console.error('Error sending request to ERP:', err.response ? err.response.data : err.message);
-  }
+      // console.log('ERP response:', response.data);
+    } catch (err) {
+      console.error('Error sending request to ERP:', err.response ? err.response.data : err.message);
+    }
 }
 
 
@@ -485,6 +468,49 @@ function toLowerCaseKeys(obj) {
   }
   // primitives: return as is
   return obj;
+}
+
+
+// cache table columns so you don’t query information_schema every time
+const tableColumnsCache = {};
+
+async function getTableColumns(pool, tableName) {
+  if (!tableColumnsCache[tableName]) {
+    const res = await pool.query(
+      `SELECT column_name FROM information_schema.columns WHERE table_name = $1`,
+      [tableName]
+    );
+    tableColumnsCache[tableName] = res.rows.map(r => r.column_name);
+  }
+  return tableColumnsCache[tableName];
+}
+
+async function dynamicInsert(pool, tableName, data) {
+  const columns = await getTableColumns(pool, tableName);
+
+  // filter keys that exist in the table
+  const filtered = Object.keys(data)
+    .filter(key => columns.includes(key))
+    .reduce((obj, key) => {
+      obj[key] = data[key];
+      return obj;
+    }, {});
+
+  if (Object.keys(filtered).length === 0) {
+    console.log(`No matching columns for ${tableName}, skipping`);
+    return null;
+  }
+
+  const fields = Object.keys(filtered).join(',');
+  const placeholders = Object.keys(filtered)
+    .map((_, i) => `$${i + 1}`)
+    .join(',');
+
+  const values = Object.values(filtered);
+
+  const q = `INSERT INTO ${tableName} (${fields}) VALUES (${placeholders}) RETURNING *;`;
+  const res = await pool.query(q, values);
+  return res.rows[0]; // return full inserted row
 }
 
 
