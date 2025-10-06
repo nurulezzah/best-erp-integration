@@ -13,7 +13,7 @@ app.post('/salesorder',  async (req, res) => {
   try {
     const inputData = req.body;
     const result = await processSalesOrder(inputData);
-    res.json({ status: 'success', salesOrder: result });
+    res.json(result);
   } catch (err) {
     console.error('Error processing sales order:', err);
     res.status(500).json({ status: 'error', message: err.message });

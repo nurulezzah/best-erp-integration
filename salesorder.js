@@ -30,6 +30,7 @@ function getCurrentDateTime() {
 
 async function processSalesOrder(input) {
   let dbResult;
+
   //insert raw data into db
   const query = `
     INSERT INTO so_upstream_input_raw (rawdata)
@@ -39,18 +40,8 @@ async function processSalesOrder(input) {
 
   dbResult = await pool.query(query, [input]); // input is your JSON object
 
-
   const rawUuid = dbResult.rows[0].uuid;
-  // console.log(input);
-  const skuList =
-    {
-      sku: input.skuList?.sku || "",
-      payAmount: input.skuList?.payAmount || 0.0,
-      paymentPrice: input.skuList?.paymentPrice || 0.0,
-      quantity: input.skuList?.quantity || 0,
-      promotionDiscount: 0
-    }
-  ;
+
   // Insert into DB (example)
   let query2 = `
     INSERT INTO so_upstream_input_formatted
@@ -111,7 +102,6 @@ async function processSalesOrder(input) {
 
   let getSkuList = result.rows;
   const jsonValue = insertResult.rows[0];
-  // console.log ("jsonValue =",getSkuList);
 
   return await createReq(jsonValue, getSkuList);
 }
@@ -121,10 +111,10 @@ async function createReq(data, skuList){
   try{
 
     const uuid = data.uuid;
-    // console.log (" DATA =", uuid);
-    // return;
+
     // INSERT INTO so_sku_list
     try {
+
     // prepare your insert statement once
     const so_sku_list = `
       INSERT INTO so_sku_list
@@ -134,6 +124,7 @@ async function createReq(data, skuList){
 
     // loop through the array
     for (const skuItem of skuList) {
+
       // skip empty/invalid objects
       if (!skuItem.sku || !skuItem.onlineordernumber) continue;
 
@@ -148,7 +139,6 @@ async function createReq(data, skuList){
       await pool.query(so_sku_list, valuesSku);
     }
 
-    console.log('All rows inserted');
   } catch (err) {
     console.error(err);
   }
@@ -185,7 +175,6 @@ async function createReq(data, skuList){
   
     await pool.query(query3, values3);
 
-
     //bizParam
     let bizParam = {
       "shop" : data.shop,
@@ -219,15 +208,13 @@ async function createReq(data, skuList){
     let uuidBizParam = r.rows[0].uuid;
 
 
-    // return bizParam;
     // CONCATENATE THE BASE REQUEST
     let concatOrder =  "".concat("appId=", data.appid,"bizParam=", JSON.stringify(bizParam),"serviceType=", data.servicetype,"timestamp=", timestamp,appSecret);
     // let concatOrder2 =  "".concat("appId=", data.appid,"bizParam=", JSON.stringify(bizParam),"serviceType=", data.servicetype,"timestamp=",Date.now(),appSecret);
-    // console.log(concatOrder);
+
       
     //CREATE SIGN
     let sign = md5Hash(concatOrder);
-    // console.log("sign= ",sign);
 
     const query5 = `
         INSERT INTO so_base_req
@@ -247,8 +234,6 @@ async function createReq(data, skuList){
 
     const returnRes = await pool.query(query5, values5);
 
-    // return;
-        // INSERT INTO DB FOR BASE REQ
     let baseReq = {
       "uuid" : returnRes.rows[0].uuid,
       "uuid_bizparam" : returnRes.rows[0].uuid_bizparam,
@@ -272,8 +257,6 @@ async function createReq(data, skuList){
 
 async function reqToERP(data, uuid) {
 
-  // console.log("data = ", data);
-  // return;
   // prepare form-data
   const form = new FormData();
   form.append('appId', data.appId);
@@ -283,64 +266,18 @@ async function reqToERP(data, uuid) {
   form.append('timestamp', data.timestamp);
   form.append('appSecret', data.appSecret);
 
+
+
+
   try {
-    // const response = await axios.post(
-    //   'https://www.qianyierp.com/api/v1/salesOrder', // replace with ERP URL
-    //   form,
-    //   { headers: form.getHeaders() }
-    // );
+
+    // POST REQUEST TO BEST ERP
+    const response = await axios.post(
+      'https://www.qianyierp.com/api/v1/salesOrder', // replace with ERP URL
+      form,
+      { headers: form.getHeaders() }
+    );
     
-   
-
-
-    //SUCCESS RESPONSE
-    const response = {
-      data : {
-        state: 'success',
-        errorCode: '',
-        errorMsg: '',
-        bizContent: '{"notSuccess":false,"result":{"buyer":{"address1":"My House 01","address2":"","buyerId":"","city":"PETALING JAYA","country":"MY","district":"","email":"","isDeleted":0,"phone":"0101010","postCode":"47800","province":"SELANGOR","receiverName":"Ezzah"},"buyerPaidShippingFee":0,"codPayAmount":666.0,"createTime":1758789261000,"currency":"MYR","finalProductProtection":0,"forceSys":true,"freight":0.0,"isAFN":0,"isDeleted":0,"isSys":false,"onlineOrderNumber":"4444","onlineStatus":"WAIT_AUDIT","orderNumber":"HE2509252712016","payTime":1756964761000,"paymentMethod":"COD","platform":"INDEPENDENT","platformRebate":0,"platformRebateForWook":0,"platformReturnToSeller":0,"returnGiftFlag":false,"returnSnList":false,"sellerDiscount":0,"sellerDiscountForWook":0,"shop":"AFM-IT-API-TEST","shopId":285633,"skuList":[{"discountPrice":0,"onlineItemId":"10000","onlineProductCode":"HENG-ITEM-1","onlineProductTitle":"test item 1","onlineTransactionId":"5556666","orderSkuId":1928032245,"originalPrice":0,"payAmount":5.0,"paymentPrice":0,"platformDiscount":0,"promotionDiscount":0.0,"quantity":36,"shippingPrice":0.0,"sku":"HENG-ITEM-1","subSkuList":[],"tag":{"allReturned":0,"hasRefund":0,"isGift":0,"onlineShipped":0,"preSale":0},"totalDiscount":0.0,"totalTax":0.0},{"discountPrice":0,"onlineItemId":"900900","onlineProductCode":"HENG-ITEM-2","onlineProductTitle":"test item 2","onlineTransactionId":"5556666","orderSkuId":1928032245,"originalPrice":0,"payAmount":5.0,"paymentPrice":0,"platformDiscount":0,"promotionDiscount":0.0,"quantity":36,"shippingPrice":0.0,"sku":"HENG-ITEM-2","subSkuList":[],"tag":{"allReturned":0,"hasRefund":0,"isGift":0,"onlineShipped":0,"preSale":0},"totalDiscount":0.0,"totalTax":0.0}],"status":"WAIT_AUDIT","tag":{"allRefund":0,"allReturned":0,"consolidated":0,"hasRefund":0,"itemReturned":0,"locked":0,"onlineShipFeedbackAlready":0,"onlineShipFeedbackFailed":0,"onlineShipped":0,"outOfStock":0,"partRefund":0,"partReturned":0,"platformFulfillment":0,"preSale":0,"reShip":0,"sampleOrder":0,"sendFailed":0,"sendWms":0,"split":0},"totalAmount":5.0,"totalDiscount":0,"updateTime":1758789261000},"state":"success"}',
-        requestId: '7e6a7a61-4f68-4513-8f49-3227761df2b2'
-      }
-    }
-
-
-    // 
-//     ERP response: {
-//   state: 'success',
-//   errorCode: '',
-//   errorMsg: '',
-//   bizContent: '{"errorCode":"order.id.exist","errorMsg":"订单号已存在","notSuccess":true,"state":"failure"}',
-//   requestId: null
-// }
-
-
-    // 0 & 1
-    // ERP response: {
-    //   state: 'success',
-    //   errorCode: '',
-    //   errorMsg: '',
-    //   bizContent: '{"errorCode":"SKU_NOT_EXISTS_WITH_ARGS","errorMsg":"sku不存在，具体清单如下: ITEM-1; ITEM-2; ","notSuccess":true,"state":"failure"}',
-    //   requestId: '1957b4b8-f969-4236-b453-cb8dbc855feb'
-    // }
-
-
-//     ERP response: {
-//   errorCode: 'APP_NOT_EXIST',
-//   errorMsg: 'app不存在',
-//   state: 'failure',
-//   success: false
-// }
-
-// ERP response: {
-//   state: 'failure',
-//   errorCode: 'SYSTEM_ERROR',
-//   errorMsg: '系统异常,请联系官方人员',
-//   bizContent: null,
-//   requestId: null
-// }
-
-    // return;
     const baseRes = `
        UPDATE so_base_req
        SET state = $1,
@@ -362,64 +299,172 @@ async function reqToERP(data, uuid) {
 
     await pool.query(baseRes, baseResVal);
 
-    let a = JSON.parse(response.data.bizContent);
-    //  console.log(" array =", a["result"]);
-    
-
-    if (a["notSuccess"] == false){ //  0 & 0
-
-      const newData = toLowerCaseKeys(a["result"]);
-
-      try{
-
-        // INSERT INTO so_bizcontent_result
-        await dynamicInsert(pool, 'so_bizcontent_result', {
-          base_req_uuid: data.uuid,
-          ...newData,
-          buyer: JSON.stringify(newData.buyer ?? {}),
-          skulist: JSON.stringify(newData.skulist ?? []),
-          tag: JSON.stringify(newData.tag ?? {}),
-          ordercustomfieldvaluevolist: JSON.stringify(newData.ordercustomfieldvaluevolist ?? []),
-          subordernumberlist: JSON.stringify(newData.subordernumberlist ?? [])
-        });
-
-        const onlineordernumber = a.result.onlineOrderNumber;
-
-        // INSERT INTO so_result_tag
-        await dynamicInsert(pool, 'so_result_tag', {onlineordernumber, ...newData.tag});
-
-
-        //  SKULIST CAN LOOP THRU TO INSERT
-        const res = await pool.query(
-          `SELECT column_name
-            FROM information_schema.columns
-            WHERE  table_name   = $1`,
-          ['so_result_sku']
-        );
-
-        const skulist = toLowerCaseKeys(a.result.skuList);
-
-        for (const skuItem of skulist) {
-
-          // add onlineordernumber into the object
-          skuItem.onlineordernumber = onlineordernumber;
-
-          // 2a. Insert SKU row into so_result_sku
-          const insertedSku = await dynamicInsert(pool, 'so_result_sku', skuItem);
-
-          if (insertedSku) {
-            const onlineordernumber = insertedSku.onlineordernumber;
-
-            // 2b. Insert tag row(s) into so_result_skutag
-            if (skuItem.tag) {
-              const tagData = { onlineordernumber, ...skuItem.tag };
-              await dynamicInsert(pool, 'so_result_skutag', tagData);
+    if ('bizContent' in response.data && response.data.bizContent != null){
+      let a = JSON.parse(response.data.bizContent);
+      if (a["state"] == "success" ){ //  0 & 0
+  
+        const newData = toLowerCaseKeys(a["result"]);
+  
+        try{
+  
+          // INSERT INTO so_bizcontent_result
+          await dynamicInsert(pool, 'so_bizcontent_result', {
+            base_req_uuid: data.uuid,
+            ...newData,
+            buyer: JSON.stringify(newData.buyer ?? {}),
+            skulist: JSON.stringify(newData.skulist ?? []),
+            tag: JSON.stringify(newData.tag ?? {}),
+            ordercustomfieldvaluevolist: JSON.stringify(newData.ordercustomfieldvaluevolist ?? []),
+            subordernumberlist: JSON.stringify(newData.subordernumberlist ?? [])
+          });
+  
+          const onlineordernumber = a.result.onlineOrderNumber;
+  
+          // INSERT INTO so_result_tag
+          await dynamicInsert(pool, 'so_result_tag', {onlineordernumber, ...newData.tag});
+  
+  
+          //  SKULIST CAN LOOP THRU TO INSERT
+          const res = await pool.query(
+            `SELECT column_name
+              FROM information_schema.columns
+              WHERE  table_name   = $1`,
+            ['so_result_sku']
+          );
+  
+          const skulist = toLowerCaseKeys(a.result.skuList);
+  
+          for (const skuItem of skulist) {
+  
+            // add onlineordernumber into the object
+            skuItem.onlineordernumber = onlineordernumber;
+  
+            // 2a. Insert SKU row into so_result_sku
+            const insertedSku = await dynamicInsert(pool, 'so_result_sku', skuItem);
+  
+            if (insertedSku) {
+              const onlineordernumber = insertedSku.onlineordernumber;
+  
+              // 2b. Insert tag row(s) into so_result_skutag
+              if (skuItem.tag) {
+                const tagData = { onlineordernumber, ...skuItem.tag };
+                await dynamicInsert(pool, 'so_result_skutag', tagData);
+              }
             }
           }
+  
+        }catch (err) {
+          console.error('Error inserting into bizContent:', err.response ? err.response.data : err.message);
+        }
+  
+  
+        //create SMF RESPONSE
+        const formatted_res = {
+          "state" : "success",
+          "responsecode" : "0",
+          "response_date" : getCurrentDateTime()
+        }
+        const upstreamQue = `
+          UPDATE so_upstream_input_formatted
+          SET state = $1,
+              responsecode = $2,
+              response_date = $3
+          WHERE uuid = $4
+          RETURNING rawuuid;
+        `;
+  
+        let upstreamVal = [
+          formatted_res.state,
+          formatted_res.responsecode,
+          formatted_res.response_date,
+          uuid
+        ];
+  
+        let queryUuid = await pool.query(upstreamQue, upstreamVal);
+
+
+        const rawUuid = queryUuid.rows[0].rawuuid;
+
+        const rawRes = `
+          UPDATE so_upstream_input_raw
+          SET rawresponse = $1::jsonb,
+              response_date = $2
+          WHERE uuid = $3;
+        `;
+  
+        let rawVal = [
+          JSON.stringify(formatted_res),
+          formatted_res.response_date,
+          rawUuid
+        ];
+  
+        await pool.query(rawRes, rawVal);
+        return await formatted_res;
+
+
+  
+  
+      } else if (a["state"] == "failure" ){  //0 & 1
+        const resData = toLowerCaseKeys(a);
+        await dynamicInsert(pool, 'so_bizcontent_result', {
+          base_req_uuid: data.uuid,
+          ...resData
+        });
+  
+        //create SMF RESPONSE
+        const formatted_res = {
+          "state" : "failure",
+          "responsecode" : "1",
+          "response_date" : getCurrentDateTime()
         }
 
-      }catch (err) {
-        console.error('Error inserting into bizContent:', err.response ? err.response.data : err.message);
+
+        const upstreamQue = `
+          UPDATE so_upstream_input_formatted
+          SET state = $1,
+              responsecode = $2,
+              response_date = $3
+          WHERE uuid = $4
+          RETURNING rawuuid;
+        `;
+  
+        let upstreamVal = [
+          formatted_res.state,
+          formatted_res.responsecode,
+          formatted_res.response_date,
+          uuid
+        ];
+  
+        let queryUuid = await pool.query(upstreamQue, upstreamVal);
+
+
+        const rawUuid = queryUuid.rows[0].rawuuid;
+
+        const rawRes = `
+          UPDATE so_upstream_input_raw
+          SET rawresponse = $1::jsonb,
+              response_date = $2
+          WHERE uuid = $3;
+        `;
+  
+        let rawVal = [
+          JSON.stringify(formatted_res),
+          formatted_res.response_date,
+          rawUuid
+        ];
+  
+        await pool.query(rawRes, rawVal);
+
+        return await formatted_res;
+        
+      };
+    } else {
+
+      //create SMF RESPONSE
+      const formatted_res = {
+        "state" : "failure",
+        "responsecode" : "1",
+        "response_date" : getCurrentDateTime()
       }
 
 
@@ -428,30 +473,42 @@ async function reqToERP(data, uuid) {
         SET state = $1,
             responsecode = $2,
             response_date = $3
-        WHERE uuid = $4;
+        WHERE uuid = $4
+        RETURNING rawuuid;
       `;
 
       let upstreamVal = [
-        "success",
-        "0",
-        getCurrentDateTime(),
+        formatted_res.state,
+        formatted_res.responsecode,
+        formatted_res.response_date,
         uuid
       ];
 
-      await pool.query(upstreamQue, upstreamVal);
+        let queryUuid = await pool.query(upstreamQue, upstreamVal);
 
 
-    } else {  //0 & 1
-      console.log("false");
-      
+      const rawUuid = queryUuid.rows[0].rawuuid;
 
+      const rawRes = `
+        UPDATE so_upstream_input_raw
+        SET rawresponse = $1::jsonb,
+            response_date = $2
+        WHERE uuid = $3;
+      `;
 
-    };
+      let rawVal = [
+        JSON.stringify(formatted_res),
+        formatted_res.response_date,
+        rawUuid
+      ];
 
-      // console.log('ERP response:', response.data);
-    } catch (err) {
-      console.error('Error sending request to ERP:', err.response ? err.response.data : err.message);
+      await pool.query(rawRes, rawVal);
+      return await formatted_res;
+
     }
+  } catch (err) {
+    console.error('Error sending request to ERP:', err.response ? err.response.data : err.message);
+  }
 }
 
 
