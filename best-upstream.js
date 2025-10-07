@@ -1,6 +1,7 @@
 const express = require('express');
 const app = express();
 const port = 3000;
+const hostname = "127.0.0.1";
 
 // Import your salesorder function
 const { processSalesOrder } = require('./salesorder');
@@ -26,7 +27,7 @@ app.get('/salesorder', (req, res) => {
 });
 
 app.listen(port, () => {
-    console.log(`Server running at http://localhost:${port}`);
+    console.log(`Server running at http://${hostname}:${port}`);
 });
 
 
