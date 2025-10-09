@@ -2,6 +2,7 @@ const pool = require('./db');
 const crypto = require("crypto");
 const axios = require('axios');
 const FormData = require('form-data');
+const logger = require('./logger'); // <-- import logger
 
 
 const appSecret = "9ced6df12e6ebcba54b2877677640165";
@@ -100,7 +101,8 @@ async function processSalesOrder(input) {
     [input.onlineOrderNumber]
   );
 
-  let getSkuList = result.rows;
+  // let getSkuList = result.rows;
+  let getSkuList = result.rows.map(({ upstream_formatted_uuid, appid, created_date,onlineordernumber, ...rest }) => rest);
   const jsonValue = insertResult.rows[0];
 
   return await createReq(jsonValue, getSkuList);
@@ -174,6 +176,7 @@ async function createReq(data, skuList){
     ];
   
     await pool.query(query3, values3);
+    delete buyer.onlineOrderNumber;
 
     //bizParam
     let bizParam = {
@@ -234,6 +237,7 @@ async function createReq(data, skuList){
 
     const returnRes = await pool.query(query5, values5);
 
+
     let baseReq = {
       "uuid" : returnRes.rows[0].uuid,
       "uuid_bizparam" : returnRes.rows[0].uuid_bizparam,
@@ -245,6 +249,7 @@ async function createReq(data, skuList){
       "appSecret" : appSecret
     };
 
+    
 
     return await reqToERP(baseReq, uuid);
 
@@ -266,6 +271,16 @@ async function reqToERP(data, uuid) {
   form.append('timestamp', data.timestamp);
   form.append('appSecret', data.appSecret);
 
+  const safeLog = {
+    appId: data.appId,
+    serviceType: data.serviceType,
+    sign: data.sign,
+    bizParam: JSON.parse(data.bizParam),
+    timestamp: data.timestamp,
+    appSecret: data.appSecret
+  };
+
+  logger.info(`Request to BEST ERP: ${JSON.stringify(safeLog, null, 2)}`);
 
 
 
@@ -277,7 +292,10 @@ async function reqToERP(data, uuid) {
       form,
       { headers: form.getHeaders() }
     );
-    
+
+
+    logger.info(`Response from BEST ERP: ${JSON.stringify(response.data, null, 2)}`);
+
     const baseRes = `
        UPDATE so_base_req
        SET state = $1,
