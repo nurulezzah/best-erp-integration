@@ -142,7 +142,7 @@ async function createReq(data, skuList){
     }
 
   } catch (err) {
-    console.error(err);
+    logger.error(err);
   }
 
     // INSERT into db 
@@ -254,8 +254,7 @@ async function createReq(data, skuList){
     return await reqToERP(baseReq, uuid);
 
   } catch (err) {
-    console.error("❌ Error in reqToERP:", err.message);
-    console.error("Stack Trace:", err.stack);
+    logger.error("Error in reqToERP:", err.message);
   }
 
 }
@@ -372,7 +371,7 @@ async function reqToERP(data, uuid) {
           }
   
         }catch (err) {
-          console.error('Error inserting into bizContent:', err.response ? err.response.data : err.message);
+          logger.error('Error inserting into bizContent:', err.response ? err.response.data : err.message);
         }
   
   
@@ -525,7 +524,7 @@ async function reqToERP(data, uuid) {
 
     }
   } catch (err) {
-    console.error('Error sending request to ERP:', err.response ? err.response.data : err.message);
+    logger.error('Error sending request to ERP:', err.response ? err.response.data : err.message);
   }
 }
 
