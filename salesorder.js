@@ -571,7 +571,7 @@ async function dynamicInsert(pool, tableName, data) {
     }, {});
 
   if (Object.keys(filtered).length === 0) {
-    console.log(`No matching columns for ${tableName}, skipping`);
+    logger.info(`No matching columns for ${tableName}, skipping`);
     return null;
   }
 

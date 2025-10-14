@@ -4,10 +4,10 @@ const { createLogger, format, transports } = require('winston');
 require('winston-daily-rotate-file');
 
 // Log directory (default to ./logs or env var)
-const logDir = process.env.LOG_DIR || path.join(__dirname, 'logs');
+// const logDir = process.env.LOG_DIR || path.join(__dirname, 'logs');
 
 // linux env
-// const logDir = '/var/log/best-erp-integration';
+const logDir = '/var/log/best-erp-integration';
 
 
 // Ensure log folder exists
