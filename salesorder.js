@@ -102,7 +102,9 @@ async function processSalesOrder(input) {
   );
 
   // let getSkuList = result.rows;
-  let getSkuList = result.rows.map(({ upstream_formatted_uuid, appid, created_date,onlineordernumber, ...rest }) => rest);
+  let getSkuList = result.rows
+  .filter(row => row.upstream_formatted_uuid === upstream_uuid) // only keep matching rows
+  .map(({ upstream_formatted_uuid, appid, created_date, onlineordernumber, ...rest }) => rest); // then remove unwanted keys
   const jsonValue = insertResult.rows[0];
 
   return await createReq(jsonValue, getSkuList);
@@ -249,6 +251,7 @@ async function createReq(data, skuList){
       "appSecret" : appSecret
     };
 
+    // console.log("baseReq = ", baseReq);
     
 
     return await reqToERP(baseReq, uuid);
@@ -293,6 +296,7 @@ async function reqToERP(data, uuid) {
     );
 
 
+    // return;
     logger.info(`Response from BEST ERP: ${JSON.stringify(response.data, null, 2)}`);
 
     const baseRes = `
