@@ -46,8 +46,8 @@ async function processSalesOrder(input) {
   // Insert into DB (example)
   let query2 = `
     INSERT INTO so_upstream_input_formatted
-      (rawuuid, appid, servicetype, shop, onlineordernumber, paymentmethod, codpayamount, paytime, sku, receivername, receiverphone, receivercountry, receiverprovince, receivercity, receiverpostcode, receiveraddress)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10 ,$11, $12, $13, $14, $15, $16)
+      (rawuuid, appid, servicetype, shop, onlineordernumber, paymentmethod, codpayamount, paytime, sku, receivername, receiverphone, receivercountry, receiverprovince, receivercity, receiverpostcode, receiveraddress, trackingnumber)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10 ,$11, $12, $13, $14, $15, $16,$17)
     RETURNING *;
   `;
 
@@ -67,7 +67,8 @@ async function processSalesOrder(input) {
     input.receiverProvince,
     input.receiverCity,
     input.receiverPostcode,
-    input.receiverAddress
+    input.receiverAddress,
+    input.trackingNumber
   ];
 
   const insertResult = await pool.query(query2, values2);
@@ -188,14 +189,15 @@ async function createReq(data, skuList){
       "codPayAmount" : data.codpayamount || 0.0,
       "currency" : "MYR",
       "payTime" : data.paytime,
+      "trackingNumber" : data.trackingnumber,
       "buyer" : buyer,
       "skuList" : skuList,
     };
 
     let query4 = `
         INSERT INTO so_bizparam
-          (shop, onlineordernumber, paymentmethod, codpayamount, currency, paytime, buyer, skuList)
-        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb)
+          (shop, onlineordernumber, paymentmethod, codpayamount, currency, paytime, buyer, skulist, trackingnumber)
+        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9)
         RETURNING uuid;
       `;
     let values4 = [
@@ -206,7 +208,8 @@ async function createReq(data, skuList){
       bizParam.currency,
       bizParam.payTime,
       JSON.stringify(bizParam.buyer),
-      JSON.stringify(bizParam.skuList)
+      JSON.stringify(bizParam.skuList),
+      bizParam.trackingNumber
     ];
     const r = await pool.query(query4, values4);
 
@@ -217,7 +220,6 @@ async function createReq(data, skuList){
     let concatOrder =  "".concat("appId=", data.appid,"bizParam=", JSON.stringify(bizParam),"serviceType=", data.servicetype,"timestamp=", timestamp,appSecret);
     // let concatOrder2 =  "".concat("appId=", data.appid,"bizParam=", JSON.stringify(bizParam),"serviceType=", data.servicetype,"timestamp=",Date.now(),appSecret);
 
-      
     //CREATE SIGN
     let sign = md5Hash(concatOrder);
 
@@ -250,8 +252,6 @@ async function createReq(data, skuList){
       "timestamp" : returnRes.rows[0].timestamp,
       "appSecret" : appSecret
     };
-
-    // console.log("baseReq = ", baseReq);
     
 
     return await reqToERP(baseReq, uuid);
@@ -296,7 +296,6 @@ async function reqToERP(data, uuid) {
     );
 
 
-    // return;
     logger.info(`Response from BEST ERP: ${JSON.stringify(response.data, null, 2)}`);
 
     const baseRes = `
