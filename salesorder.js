@@ -427,15 +427,30 @@ async function reqToERP(data, uuid) {
   
       } else if (a["state"] == "failure" ){  //0 & 1
         const resData = toLowerCaseKeys(a);
+
         await dynamicInsert(pool, 'so_bizcontent_result', {
           base_req_uuid: data.uuid,
           ...resData
         });
-  
+
+        const errorcode = (resData.errorcode).trim();
+
+        let responseCode = "1"; // default value
+
+        if (errorcode.startsWith('order.')) {
+          responseCode = "2";
+        } else if (errorcode.startsWith('SHOP_')) {
+          responseCode = "3";
+        } else if (errorcode.startsWith('ORDER_')) {
+          responseCode = "4";
+        }else if (errorcode.startsWith('SKU_')){
+          responseCode = "5";
+        }
+
         //create SMF RESPONSE
         const formatted_res = {
           "state" : "failure",
-          "responsecode" : "1",
+          "responsecode" : responseCode,
           "response_date" : getCurrentDateTime()
         }
 
