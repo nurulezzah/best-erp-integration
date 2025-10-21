@@ -34,20 +34,24 @@ async function checkOrderStatus(input) {
 
     //insert raw data into db
     const query = `
-        INSERT INTO inv_upstream_input_raw (rawdata)
-        VALUES ($1::jsonb)
+        INSERT INTO inv_upstream_input_raw (rawdata, created_date)
+        VALUES ($1::jsonb,$2)
         RETURNING uuid;
     `;
+      let values =[
+        input,
+        getCurrentDateTime()
+    ]
 
-    let dbResult = await pool.query(query, [input]); 
+    let dbResult = await pool.query(query, values); 
 
     const rawUuid = dbResult.rows[0].uuid;
 
 
     const query2 = `
         INSERT INTO inv_upstream_input_formatted
-        (rawuuid, appid, servicetype, sku, warehouse)
-        VALUES ($1,$2,$3,$4::jsonb,$5)
+        (rawuuid, appid, servicetype, sku, warehouse, created_date)
+        VALUES ($1,$2,$3,$4::jsonb,$5,$6)
         RETURNING *;
     `;
 
@@ -56,7 +60,8 @@ async function checkOrderStatus(input) {
         input.appId,
         input.serviceType,
          JSON.stringify(input.sku),
-        input.warehouse
+        input.warehouse,
+        getCurrentDateTime()
     ]
     let dbResult2 = await pool.query(query2, value2); 
     
@@ -66,8 +71,8 @@ async function checkOrderStatus(input) {
     
     const query3 = `
         INSERT INTO inv_biz_param
-        (skulist, warehouse, page, pagesize)
-        VALUES ($1::json,$2,$3,$4)
+        (skulist, warehouse, page, pagesize, created_date)
+        VALUES ($1::json,$2,$3,$4,$5)
         RETURNING uuid;
     `;
 
@@ -75,7 +80,8 @@ async function checkOrderStatus(input) {
         JSON.stringify(input.sku),
         input.warehouse,
         page,
-        pageSize
+        pageSize,
+        getCurrentDateTime()
     ]
     let dbResult3 = await pool.query(query3, value3); 
 
@@ -103,8 +109,8 @@ async function checkOrderStatus(input) {
 
     const query4 = `
         INSERT INTO inv_base_req
-        (uuid_upstream, uuid_bizparam, appid, bizparam, servicetype, timestamp, sign)
-        VALUES ($1,$2,$3,$4::json,$5,$6,$7)
+        (uuid_upstream, uuid_bizparam, appid, bizparam, servicetype, timestamp, sign, created_date)
+        VALUES ($1,$2,$3,$4::json,$5,$6,$7,$8)
         RETURNING uuid;
     `;
 
@@ -115,7 +121,8 @@ async function checkOrderStatus(input) {
         baseReq.bizParam,
         baseReq.serviceType,
         baseReq.timestamp,
-        baseReq.sign
+        baseReq.sign,
+        getCurrentDateTime()
     ];
 
     
@@ -191,7 +198,8 @@ async function checkOrderStatus(input) {
 
                     await dynamicInsert(pool, 'inv_biz_content_result', {
                         base_req_uuid: baseReqUuid,
-                        ...bizContentResult
+                        ...bizContentResult,
+                        created_date: getCurrentDateTime()
                     });
 
 
