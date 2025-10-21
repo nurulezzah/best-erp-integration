@@ -34,20 +34,24 @@ async function processSalesOrder(input) {
 
   //insert raw data into db
   const query = `
-    INSERT INTO so_upstream_input_raw (rawdata)
-    VALUES ($1::jsonb)
+    INSERT INTO so_upstream_input_raw (rawdata, created_date)
+    VALUES ($1::jsonb, $2)
     RETURNING uuid;
   `;
+  let values =[
+    input,
+    getCurrentDateTime()
+  ]
 
-  dbResult = await pool.query(query, [input]); // input is your JSON object
+  dbResult = await pool.query(query, values); // input is your JSON object
 
   const rawUuid = dbResult.rows[0].uuid;
 
   // Insert into DB (example)
   let query2 = `
     INSERT INTO so_upstream_input_formatted
-      (rawuuid, appid, servicetype, shop, onlineordernumber, paymentmethod, codpayamount, paytime, sku, receivername, receiverphone, receivercountry, receiverprovince, receivercity, receiverpostcode, receiveraddress, trackingnumber)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10 ,$11, $12, $13, $14, $15, $16,$17)
+      (rawuuid, appid, servicetype, shop, onlineordernumber, paymentmethod, codpayamount, paytime, sku, receivername, receiverphone, receivercountry, receiverprovince, receivercity, receiverpostcode, receiveraddress, trackingnumber, created_date)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10 ,$11, $12, $13, $14, $15, $16,$17,$18)
     RETURNING *;
   `;
 
@@ -68,7 +72,8 @@ async function processSalesOrder(input) {
     input.receiverCity,
     input.receiverPostcode,
     input.receiverAddress,
-    input.trackingNumber
+    input.trackingNumber,
+    getCurrentDateTime()
   ];
 
   const insertResult = await pool.query(query2, values2);
@@ -80,8 +85,8 @@ async function processSalesOrder(input) {
       await pool.query(
         `
         INSERT INTO so_upstream_input_formatted_sku
-          (upstream_formatted_uuid, onlineordernumber, appid, sku, payamount, paymentprice, quantity)
-        VALUES ($1, $2, $3, $4, $5, $6, $7);
+          (upstream_formatted_uuid, onlineordernumber, appid, sku, payamount, paymentprice, quantity, created_date)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
         `,
         [
           upstream_uuid,
@@ -90,7 +95,8 @@ async function processSalesOrder(input) {
           sku.sku,
           sku.payAmount,
           sku.paymentPrice,
-          sku.quantity
+          sku.quantity,
+          getCurrentDateTime()
         ]
       );
     }
@@ -105,7 +111,7 @@ async function processSalesOrder(input) {
   // let getSkuList = result.rows;
   let getSkuList = result.rows
   .filter(row => row.upstream_formatted_uuid === upstream_uuid) // only keep matching rows
-  .map(({ upstream_formatted_uuid, appid, created_date, onlineordernumber, ...rest }) => rest); // then remove unwanted keys
+  .map(({ upstream_formatted_uuid, appid, ...rest }) => rest); // then remove unwanted keys
   const jsonValue = insertResult.rows[0];
 
   return await createReq(jsonValue, getSkuList);
@@ -123,8 +129,8 @@ async function createReq(data, skuList){
     // prepare your insert statement once
     const so_sku_list = `
       INSERT INTO so_sku_list
-        (onlineordernumber, sku, payamount, paymentprice, quantity)
-      VALUES ($1, $2, $3, $4, $5);
+        (onlineordernumber, sku, payamount, paymentprice, quantity, created_date)
+      VALUES ($1, $2, $3, $4, $5, $6);
     `;
 
     // loop through the array
@@ -138,7 +144,8 @@ async function createReq(data, skuList){
         skuItem.sku,
         parseFloat(skuItem.payamount),
         parseFloat(skuItem.paymentprice),
-        skuItem.quantity
+        skuItem.quantity,
+        skuItem.created_date
       ];
 
       await pool.query(so_sku_list, valuesSku);
@@ -163,8 +170,8 @@ async function createReq(data, skuList){
     
     let query3 = `
         INSERT INTO so_buyer
-          (onlineordernumber, receivername, phone, country, province, city, district, postcode, address1)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
+          (onlineordernumber, receivername, phone, country, province, city, district, postcode, address1, created_date)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);
       `;
     let values3 = [
       data.onlineordernumber,
@@ -175,7 +182,8 @@ async function createReq(data, skuList){
       data.receivercity,
       data.receiverdistrict,
       data.receiverpostcode,
-      data.receiveraddress
+      data.receiveraddress,
+      getCurrentDateTime()
     ];
   
     await pool.query(query3, values3);
@@ -196,8 +204,8 @@ async function createReq(data, skuList){
 
     let query4 = `
         INSERT INTO so_bizparam
-          (shop, onlineordernumber, paymentmethod, codpayamount, currency, paytime, buyer, skulist, trackingnumber)
-        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9)
+          (shop, onlineordernumber, paymentmethod, codpayamount, currency, paytime, buyer, skulist, trackingnumber, created_date)
+        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9, $10)
         RETURNING uuid;
       `;
     let values4 = [
@@ -209,7 +217,8 @@ async function createReq(data, skuList){
       bizParam.payTime,
       JSON.stringify(bizParam.buyer),
       JSON.stringify(bizParam.skuList),
-      bizParam.trackingNumber
+      bizParam.trackingNumber,
+      getCurrentDateTime()
     ];
     const r = await pool.query(query4, values4);
 
@@ -225,8 +234,8 @@ async function createReq(data, skuList){
 
     const query5 = `
         INSERT INTO so_base_req
-          (uuid_bizparam, appid, servicetype, bizparam, timestamp, sign)
-        VALUES ($1, $2, $3, $4::jsonb, $5, $6)
+          (uuid_bizparam, appid, servicetype, bizparam, timestamp, sign, created_date)
+        VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7)
         RETURNING *;
       `;
 
@@ -236,7 +245,8 @@ async function createReq(data, skuList){
       data.servicetype,
       bizParam,
       timestamp,
-      sign
+      sign,
+      getCurrentDateTime()
     ];
 
     const returnRes = await pool.query(query5, values5);
@@ -335,22 +345,23 @@ async function reqToERP(data, uuid) {
             skulist: JSON.stringify(newData.skulist ?? []),
             tag: JSON.stringify(newData.tag ?? {}),
             ordercustomfieldvaluevolist: JSON.stringify(newData.ordercustomfieldvaluevolist ?? []),
-            subordernumberlist: JSON.stringify(newData.subordernumberlist ?? [])
+            subordernumberlist: JSON.stringify(newData.subordernumberlist ?? []),
+            created_date: getCurrentDateTime()
           });
   
           const onlineordernumber = a.result.onlineOrderNumber;
   
           // INSERT INTO so_result_tag
-          await dynamicInsert(pool, 'so_result_tag', {onlineordernumber, ...newData.tag});
+          await dynamicInsert(pool, 'so_result_tag', {onlineordernumber, ...newData.tag, created_date: getCurrentDateTime()});
   
   
           //  SKULIST CAN LOOP THRU TO INSERT
-          const res = await pool.query(
-            `SELECT column_name
-              FROM information_schema.columns
-              WHERE  table_name   = $1`,
-            ['so_result_sku']
-          );
+          // const res = await pool.query(
+          //   `SELECT column_name
+          //     FROM information_schema.columns
+          //     WHERE  table_name   = $1`,
+          //   ['so_result_sku']
+          // );
   
           const skulist = toLowerCaseKeys(a.result.skuList);
   
@@ -360,7 +371,7 @@ async function reqToERP(data, uuid) {
             skuItem.onlineordernumber = onlineordernumber;
   
             // 2a. Insert SKU row into so_result_sku
-            const insertedSku = await dynamicInsert(pool, 'so_result_sku', skuItem);
+            const insertedSku = await dynamicInsert(pool, 'so_result_sku',{...skuItem, created_date: getCurrentDateTime()} );
   
             if (insertedSku) {
               const onlineordernumber = insertedSku.onlineordernumber;
@@ -368,7 +379,7 @@ async function reqToERP(data, uuid) {
               // 2b. Insert tag row(s) into so_result_skutag
               if (skuItem.tag) {
                 const tagData = { onlineordernumber, ...skuItem.tag };
-                await dynamicInsert(pool, 'so_result_skutag', tagData);
+                await dynamicInsert(pool, 'so_result_skutag',{...tagData, created_date: getCurrentDateTime()});
               }
             }
           }
@@ -429,7 +440,8 @@ async function reqToERP(data, uuid) {
 
         await dynamicInsert(pool, 'so_bizcontent_result', {
           base_req_uuid: data.uuid,
-          ...resData
+          ...resData,
+          created_date: getCurrentDateTime()
         });
 
         const errorcode = (resData.errorcode).trim();
