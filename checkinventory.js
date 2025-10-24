@@ -2,8 +2,7 @@ const pool = require('./db');
 const crypto = require("crypto");
 const axios = require('axios');
 const FormData = require('form-data');
-const logger = require('./logger'); // <-- import logger
-// const { time } = require('console');
+const logger = require('./logger'); 
 
 
 const appSecret = "9ced6df12e6ebcba54b2877677640165";
@@ -34,35 +33,33 @@ async function checkOrderStatus(input) {
 
     //insert raw data into db
     const query = `
-        INSERT INTO inv_upstream_input_raw (rawdata, created_date)
-        VALUES ($1::jsonb,$2)
+        INSERT INTO inv_upstream_input_raw (rawdata)
+        VALUES ($1::jsonb)
         RETURNING uuid;
     `;
       let values =[
-        input,
-        getCurrentDateTime()
+        input
     ]
 
     let dbResult = await pool.query(query, values); 
 
     const rawUuid = dbResult.rows[0].uuid;
-
-
+    
+    
+    const newinput =toLowerCaseKeys(input);
     const query2 = `
         INSERT INTO inv_upstream_input_formatted
-        (rawuuid, appid, servicetype, sku, warehouse, created_date)
-        VALUES ($1,$2,$3,$4::jsonb,$5,$6)
+        (rawuuid, appid, servicetype, sku, warehouse)
+        VALUES ($1,$2,$3,$4::jsonb,$5)
         RETURNING *;
     `;
 
     const value2 = [
         rawUuid,
-        input.appId,
-        input.serviceType,
-         JSON.stringify(input.sku),
-        input.warehouse,
-        getCurrentDateTime()
-    ]
+        newinput.appid,
+        newinput.servicetype,
+         JSON.stringify(newinput.sku),
+        newinput.warehouse    ]
     let dbResult2 = await pool.query(query2, value2); 
     
     const formattedUuid = dbResult2.rows[0].uuid;
@@ -71,46 +68,45 @@ async function checkOrderStatus(input) {
     
     const query3 = `
         INSERT INTO inv_biz_param
-        (skulist, warehouse, page, pagesize, created_date)
-        VALUES ($1::json,$2,$3,$4,$5)
+        (skulist, warehouse, page, pagesize)
+        VALUES ($1::json,$2,$3,$4)
         RETURNING uuid;
     `;
 
     const value3 = [
-        JSON.stringify(input.sku),
-        input.warehouse,
+        JSON.stringify(newinput.sku),
+        newinput.warehouse,
         page,
-        pageSize,
-        getCurrentDateTime()
+        pageSize
     ]
     let dbResult3 = await pool.query(query3, value3); 
 
     const bizParamUuid = dbResult3.rows[0].uuid;
 
     const bizParam = {
-        "skuList" : input.sku,
-        "warehouse" : input.warehouse,
+        "skuList" : newinput.sku,
+        "warehouse" : newinput.warehouse,
         "page": page,
         "pageSize" : pageSize
     };
 
 
-    let concatOrder =  "".concat("appId=", input.appId,"bizParam=", JSON.stringify(bizParam),"serviceType=", input.serviceType,"timestamp=", timestamp,appSecret);
+    let concatOrder =  "".concat("appId=", newinput.appid,"bizParam=", JSON.stringify(bizParam),"serviceType=", newinput.servicetype,"timestamp=", timestamp,appSecret);
 
     let sign = md5Hash(concatOrder);
 
     let baseReq = {
-        "appId" : input.appId,
+        "appId" : newinput.appid,
         "bizParam" : JSON.stringify(bizParam),
-        "serviceType" : input.serviceType,
+        "serviceType" : newinput.servicetype,
         "timestamp" : timestamp,
         "sign" : sign
     }
 
     const query4 = `
         INSERT INTO inv_base_req
-        (uuid_upstream, uuid_bizparam, appid, bizparam, servicetype, timestamp, sign, created_date)
-        VALUES ($1,$2,$3,$4::json,$5,$6,$7,$8)
+        (uuid_upstream, uuid_bizparam, appid, bizparam, servicetype, timestamp, sign)
+        VALUES ($1,$2,$3,$4::json,$5,$6,$7)
         RETURNING uuid;
     `;
 
@@ -121,8 +117,7 @@ async function checkOrderStatus(input) {
         baseReq.bizParam,
         baseReq.serviceType,
         baseReq.timestamp,
-        baseReq.sign,
-        getCurrentDateTime()
+        baseReq.sign
     ];
 
     
@@ -150,7 +145,7 @@ async function checkOrderStatus(input) {
             appSecret: appSecret
         };
 
-        logger.info(`Request to BEST ERP: ${JSON.stringify(safeLog, null, 2)}`);
+        logger.upstream.info(`Request to BEST ERP: ${JSON.stringify(safeLog, null, 2)}`);
 
         // POST REQUEST TO BEST ERP
         const response = await axios.post(
@@ -160,7 +155,7 @@ async function checkOrderStatus(input) {
         );
 
 
-        logger.info(`Response from BEST ERP: ${JSON.stringify(response.data, null, 2)}`);
+        logger.upstream.info(`Response from BEST ERP: ${JSON.stringify(response.data, null, 2)}`);
 
         if(response.data.state == "success") // (0 && 0) || ( 0 && 1)  
         {
@@ -194,12 +189,10 @@ async function checkOrderStatus(input) {
                 if(bizContentState.state == "success"){ // 0 && 0
 
                     const bizContentResult = toLowerCaseKeys(bizContentState.result[0]);
-                    // console.log("bizContentResult =", bizContentResult);
 
                     await dynamicInsert(pool, 'inv_biz_content_result', {
                         base_req_uuid: baseReqUuid,
-                        ...bizContentResult,
-                        created_date: getCurrentDateTime()
+                        ...bizContentResult
                     });
 
 
@@ -422,7 +415,7 @@ async function checkOrderStatus(input) {
 
 
     }catch (err) {
-        logger.error("Error in reqToERP:", err.message);
+        logger.upstream.error("Error in reqToERP:", err.message);
 
     }
 
@@ -468,7 +461,7 @@ async function dynamicInsert(pool, tableName, data) {
     }, {});
 
   if (Object.keys(filtered).length === 0) {
-    logger.info(`No matching columns for ${tableName}, skipping`);
+    logger.upstream.info(`No matching columns for ${tableName}, skipping`);
     return null;
   }
 
