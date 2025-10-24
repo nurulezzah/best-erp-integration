@@ -34,69 +34,68 @@ async function processSalesOrder(input) {
 
   //insert raw data into db
   const query = `
-    INSERT INTO so_upstream_input_raw (rawdata, created_date)
-    VALUES ($1::jsonb, $2)
+    INSERT INTO so_upstream_input_raw (rawdata)
+    VALUES ($1::jsonb)
     RETURNING uuid;
   `;
   let values =[
-    input,
-    getCurrentDateTime()
+    input
   ]
 
   dbResult = await pool.query(query, values); // input is your JSON object
 
   const rawUuid = dbResult.rows[0].uuid;
 
+  const newinput =toLowerCaseKeys(input);
+
   // Insert into DB (example)
   let query2 = `
     INSERT INTO so_upstream_input_formatted
-      (rawuuid, appid, servicetype, shop, onlineordernumber, paymentmethod, codpayamount, paytime, sku, receivername, receiverphone, receivercountry, receiverprovince, receivercity, receiverpostcode, receiveraddress, trackingnumber, created_date)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10 ,$11, $12, $13, $14, $15, $16,$17,$18)
+      (rawuuid, appid, servicetype, shop, onlineordernumber, paymentmethod, codpayamount, paytime, sku, receivername, receiverphone, receivercountry, receiverprovince, receivercity, receiverpostcode, receiveraddress, trackingnumber)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10 ,$11, $12, $13, $14, $15, $16,$17)
     RETURNING *;
   `;
 
   let values2 = [
     rawUuid,
-    input.appId,
-    input.serviceType,
-    input.shop,
-    input.onlineOrderNumber,
-    input.paymentMethod,
-    input.codPayAmount,
-    input.payTime,
-    JSON.stringify(input.skuList || []),
-    input.receiverName,
-    input.receiverPhone,
-    input.receiverCountry,
-    input.receiverProvince,
-    input.receiverCity,
-    input.receiverPostcode,
-    input.receiverAddress,
-    input.trackingNumber,
-    getCurrentDateTime()
+    newinput.appid,
+    newinput.servicetype,
+    newinput.shop,
+    newinput.onlineordernumber,
+    newinput.paymentmethod,
+    newinput.codpayamount,
+    newinput.paytime,
+    JSON.stringify(newinput.skulist || []),
+    newinput.receivername,
+    newinput.receiverphone,
+    newinput.receivercountry,
+    newinput.receiverprovince,
+    newinput.receivercity,
+    newinput.receiverpostcode,
+    newinput.receiveraddress,
+    newinput.trackingnumber
   ];
 
   const insertResult = await pool.query(query2, values2);
 
   const upstream_uuid = insertResult.rows[0].uuid;
   //INPUT FORMMATED SKU
-   if (Array.isArray(input.skuList)) {
-    for (const sku of input.skuList) {
+   if (Array.isArray(newinput.skulist)) {
+    for (const sku of newinput.skulist) {
       await pool.query(
         `
         INSERT INTO so_upstream_input_formatted_sku
-          (upstream_formatted_uuid, onlineordernumber, appid, sku, payamount, paymentprice, quantity, created_date)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
+          (upstream_formatted_uuid, onlineordernumber, appid, sku, payamount, paymentprice, quantity)
+        VALUES ($1, $2, $3, $4, $5, $6, $7);
         `,
         [
           upstream_uuid,
-          input.onlineOrderNumber,
-          input.appId,
+          newinput.onlineordernumber,
+          newinput.appid,
           sku.sku,
-          sku.payAmount,
-          sku.paymentPrice,
-          sku.quantity,
-          getCurrentDateTime()
+          sku.payamount,
+          sku.paymentprice,
+          sku.quantity
         ]
       );
     }
@@ -105,7 +104,7 @@ async function processSalesOrder(input) {
   //need to retrieve the sku by order number
   const result = await pool.query(
     `SELECT * FROM so_upstream_input_formatted_sku WHERE onlineordernumber = $1`,
-    [input.onlineOrderNumber]
+    [newinput.onlineordernumber]
   );
 
   // let getSkuList = result.rows;
@@ -129,8 +128,8 @@ async function createReq(data, skuList){
     // prepare your insert statement once
     const so_sku_list = `
       INSERT INTO so_sku_list
-        (onlineordernumber, sku, payamount, paymentprice, quantity, created_date)
-      VALUES ($1, $2, $3, $4, $5, $6);
+        (onlineordernumber, sku, payamount, paymentprice, quantity)
+      VALUES ($1, $2, $3, $4, $5);
     `;
 
     // loop through the array
@@ -144,15 +143,14 @@ async function createReq(data, skuList){
         skuItem.sku,
         parseFloat(skuItem.payamount),
         parseFloat(skuItem.paymentprice),
-        skuItem.quantity,
-        skuItem.created_date
+        skuItem.quantity
       ];
 
       await pool.query(so_sku_list, valuesSku);
     }
 
   } catch (err) {
-    logger.error(err);
+    logger.upstream.error(err);
   }
 
     // INSERT into db 
@@ -170,8 +168,8 @@ async function createReq(data, skuList){
     
     let query3 = `
         INSERT INTO so_buyer
-          (onlineordernumber, receivername, phone, country, province, city, district, postcode, address1, created_date)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);
+          (onlineordernumber, receivername, phone, country, province, city, district, postcode, address1)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
       `;
     let values3 = [
       data.onlineordernumber,
@@ -182,8 +180,7 @@ async function createReq(data, skuList){
       data.receivercity,
       data.receiverdistrict,
       data.receiverpostcode,
-      data.receiveraddress,
-      getCurrentDateTime()
+      data.receiveraddress
     ];
   
     await pool.query(query3, values3);
@@ -204,8 +201,8 @@ async function createReq(data, skuList){
 
     let query4 = `
         INSERT INTO so_bizparam
-          (shop, onlineordernumber, paymentmethod, codpayamount, currency, paytime, buyer, skulist, trackingnumber, created_date)
-        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9, $10)
+          (shop, onlineordernumber, paymentmethod, codpayamount, currency, paytime, buyer, skulist, trackingnumber)
+        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9)
         RETURNING uuid;
       `;
     let values4 = [
@@ -217,8 +214,7 @@ async function createReq(data, skuList){
       bizParam.payTime,
       JSON.stringify(bizParam.buyer),
       JSON.stringify(bizParam.skuList),
-      bizParam.trackingNumber,
-      getCurrentDateTime()
+      bizParam.trackingNumber
     ];
     const r = await pool.query(query4, values4);
 
@@ -234,8 +230,8 @@ async function createReq(data, skuList){
 
     const query5 = `
         INSERT INTO so_base_req
-          (uuid_bizparam, appid, servicetype, bizparam, timestamp, sign, created_date)
-        VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7)
+          (uuid_bizparam, appid, servicetype, bizparam, timestamp, sign)
+        VALUES ($1, $2, $3, $4::jsonb, $5, $6)
         RETURNING *;
       `;
 
@@ -245,8 +241,7 @@ async function createReq(data, skuList){
       data.servicetype,
       bizParam,
       timestamp,
-      sign,
-      getCurrentDateTime()
+      sign
     ];
 
     const returnRes = await pool.query(query5, values5);
@@ -267,7 +262,7 @@ async function createReq(data, skuList){
     return await reqToERP(baseReq, uuid);
 
   } catch (err) {
-    logger.error("Error in reqToERP:", err.message);
+    logger.upstream.error("Error in reqToERP:", err.message);
   }
 
 }
@@ -292,7 +287,7 @@ async function reqToERP(data, uuid) {
     appSecret: data.appSecret
   };
 
-  logger.info(`Request to BEST ERP: ${JSON.stringify(safeLog, null, 2)}`);
+  logger.upstream.info(`Request to BEST ERP: ${JSON.stringify(safeLog, null, 2)}`);
 
 
 
@@ -305,8 +300,7 @@ async function reqToERP(data, uuid) {
       { headers: form.getHeaders() }
     );
 
-
-    logger.info(`Response from BEST ERP: ${JSON.stringify(response.data, null, 2)}`);
+    logger.upstream.info(`Response from BEST ERP: ${JSON.stringify(response.data, null, 2)}`);
 
     const baseRes = `
        UPDATE so_base_req
@@ -345,14 +339,13 @@ async function reqToERP(data, uuid) {
             skulist: JSON.stringify(newData.skulist ?? []),
             tag: JSON.stringify(newData.tag ?? {}),
             ordercustomfieldvaluevolist: JSON.stringify(newData.ordercustomfieldvaluevolist ?? []),
-            subordernumberlist: JSON.stringify(newData.subordernumberlist ?? []),
-            created_date: getCurrentDateTime()
+            subordernumberlist: JSON.stringify(newData.subordernumberlist ?? [])
           });
   
           const onlineordernumber = a.result.onlineOrderNumber;
   
           // INSERT INTO so_result_tag
-          await dynamicInsert(pool, 'so_result_tag', {onlineordernumber, ...newData.tag, created_date: getCurrentDateTime()});
+          await dynamicInsert(pool, 'so_result_tag', {onlineordernumber, ...newData.tag});
   
   
           //  SKULIST CAN LOOP THRU TO INSERT
@@ -371,7 +364,7 @@ async function reqToERP(data, uuid) {
             skuItem.onlineordernumber = onlineordernumber;
   
             // 2a. Insert SKU row into so_result_sku
-            const insertedSku = await dynamicInsert(pool, 'so_result_sku',{...skuItem, created_date: getCurrentDateTime()} );
+            const insertedSku = await dynamicInsert(pool, 'so_result_sku',skuItem );
   
             if (insertedSku) {
               const onlineordernumber = insertedSku.onlineordernumber;
@@ -379,13 +372,13 @@ async function reqToERP(data, uuid) {
               // 2b. Insert tag row(s) into so_result_skutag
               if (skuItem.tag) {
                 const tagData = { onlineordernumber, ...skuItem.tag };
-                await dynamicInsert(pool, 'so_result_skutag',{...tagData, created_date: getCurrentDateTime()});
+                await dynamicInsert(pool, 'so_result_skutag',tagData);
               }
             }
           }
   
         }catch (err) {
-          logger.error('Error inserting into bizContent:', err.response ? err.response.data : err.message);
+          logger.upstream.error('Error inserting into bizContent:', err.response ? err.response.data : err.message);
         }
   
   
@@ -440,8 +433,7 @@ async function reqToERP(data, uuid) {
 
         await dynamicInsert(pool, 'so_bizcontent_result', {
           base_req_uuid: data.uuid,
-          ...resData,
-          created_date: getCurrentDateTime()
+          ...resData
         });
 
         const errorcode = (resData.errorcode).trim();
@@ -554,7 +546,7 @@ async function reqToERP(data, uuid) {
 
     }
   } catch (err) {
-    logger.error('Error sending request to ERP:', err.response ? err.response.data : err.message);
+    logger.upstream.error('Error sending request to ERP:', err.response ? err.response.data : err.message);
   }
 }
 
@@ -601,7 +593,7 @@ async function dynamicInsert(pool, tableName, data) {
     }, {});
 
   if (Object.keys(filtered).length === 0) {
-    logger.info(`No matching columns for ${tableName}, skipping`);
+    logger.upstream.info(`No matching columns for ${tableName}, skipping`);
     return null;
   }
 

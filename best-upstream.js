@@ -32,7 +32,7 @@ app.use(session({
 // CREATE A LOG WHEN THE APPLICATION JUST STARTED TO RUN
 app.listen(port, hostname, () => {
   const message = `BEST Upstream server started and running at http://${hostname}:${port}`;
-  logger.info(message);           // write to your log file
+  logger.upstream.info(message);           // write to your log file
 });
 
 
@@ -42,14 +42,14 @@ function sessionHandler(routeName) {
   return (req, res, next) => {
     const sessionId = uuidv4();
     req.session.requestId = sessionId;
-    logger.info(`Session created for ${routeName}: ${sessionId}`);
+    logger.upstream.info(`Session created for ${routeName}: ${sessionId}`);
 
     res.on('finish', () => {
       req.session.destroy(err => {
         if (err) {
-          logger.error(`Error destroying session ${sessionId}:`, err);
+          logger.upstream.error(`Error destroying session ${sessionId}:`, err);
         } else {
-          logger.info(`Session destroyed for ${routeName}: ${sessionId}`);
+          logger.upstream.info(`Session destroyed for ${routeName}: ${sessionId}`);
         }
       });
     });
@@ -67,15 +67,15 @@ app.post('/salesorder',  async (req, res) => {
   try {
     const inputData = req.body;
 
-    logger.info(`Receive request from downstream: ${JSON.stringify(inputData, null, 2)}`);
+    logger.upstream.info(`Receive request from downstream: ${JSON.stringify(inputData, null, 2)}`);
 
 
     const result = await processSalesOrder(inputData);
-    logger.info(`Return response to downstream: ${JSON.stringify(result)}`);
+    logger.upstream.info(`Return response to downstream: ${JSON.stringify(result)}`);
 
     res.json(result);
   } catch (err) {
-    logger.error('Error processing sales order:', err);
+    logger.upstream.error('Error processing sales order:', err);
     res.status(500).json({ status: 'error', message: err.message });
   }
 });
@@ -86,15 +86,15 @@ app.post('/checkinventory',  async (req, res) => {
   try {
     const inputData = req.body;
 
-    logger.info(`Receive request from downstream: ${JSON.stringify(inputData, null, 2)}`);
+    logger.upstream.info(`Receive request from downstream: ${JSON.stringify(inputData, null, 2)}`);
 
 
     const result = await checkOrderStatus(inputData);
-    logger.info(`Return response to downstream: ${JSON.stringify(result)}`);
+    logger.upstream.info(`Return response to downstream: ${JSON.stringify(result)}`);
 
     res.json(result);
   } catch (err) {
-    logger.error('Error processing sales order:', err);
+    logger.upstream.error('Error processing Inventory checking:', err);
     res.status(500).json({ status: 'error', message: err.message });
   }
 });
