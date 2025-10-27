@@ -32,6 +32,10 @@ async function processReq(input){
   const rawUuid = dbResult.rows[0].uuid;
 
   try {
+
+      if (!input.client || input.client.trim() === "") {
+        throw new Error("Client cannot be empty");
+      }
       const searchTerm = `%${input.client}%`;
       const query = `
       SELECT *
@@ -213,7 +217,7 @@ async function processReq(input){
       };
 
       const rawInputRes = `
-        UPDATE founderhq_inv_downstream_input_raw
+        UPDATE founderhq_so_downstream_input_raw
         SET rawresponse = $1,
             response_date = $2
         WHERE uuid = $3;

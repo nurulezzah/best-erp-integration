@@ -33,6 +33,9 @@ async function getInventory(input){
   const rawUuid = dbResult.rows[0].uuid;
 
   try{
+    if (!input.client || input.client.trim() === "") {
+        throw new Error("Client cannot be empty");
+      }
     const searchTerm = `%${input.client}%`;
       const query = `
       SELECT *
