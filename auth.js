@@ -42,15 +42,21 @@ async function revokeByClientName(clientName) {
 async function verifyTokenMiddleware(req, res, next) {
   try {
     const authHeader = req.headers['authorization'];
-    if (!authHeader) return res.status(401).json({ message: 'No token provided' });
+    if (!authHeader){
+      logger.downstream.error('No token provided');
+      return res.status(401).json({ message: 'No token provided' });
+    }
 
     const token = authHeader.split(' ')[1];
-    if (!token) return res.status(401).json({ message: 'Malformed auth header' });
+    if (!token) {
+      logger.downstream.error('Malformed auth header');
+      return res.status(401).json({ message: 'Malformed auth header' });}
 
     let decoded;
     try {
       decoded = jwt.verify(token, JWT_SECRET);
     } catch (err) {
+      logger.downstream.error('Invalid or expired token');
       return res.status(401).json({ message: 'Invalid or expired token', error: err.message });
     }
 
@@ -62,12 +68,15 @@ async function verifyTokenMiddleware(req, res, next) {
     const record = rows[0];
 
     if (!record) {
-      return res.status(401).json({ message: 'Token not found in DB' });
+      logger.downstream.error('Token does not exist');
+      return res.status(401).json({ message: 'Token does not exist' });
     }
     if (record.revoked) {
+      logger.downstream.error('Token revoked');
       return res.status(401).json({ message: 'Token revoked' });
     }
     if (new Date(record.expires_at) < new Date()) {
+      logger.downstream.info('Token expired');
       return res.status(401).json({ message: 'Token expired' });
     }
 
