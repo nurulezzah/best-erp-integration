@@ -19,8 +19,8 @@ for (const dir of Object.values(logDirs)) {
   }
 }
 
-// Helper: create logger with lazy error transport
-function createLazyLogger(name, dirPath) {
+// Helper: create logger that always writes to both info and error logs
+function createLoggerWithErrorFile(name, dirPath) {
   const infoRotate = new transports.DailyRotateFile({
     dirname: dirPath,
     filename: `${name}-info-%DATE%.log`,
@@ -28,38 +28,27 @@ function createLazyLogger(name, dirPath) {
     level: 'info',
   });
 
-  const logger = createLogger({
+  const errorRotate = new transports.DailyRotateFile({
+    dirname: dirPath,
+    filename: `${name}-error-%DATE%.log`,
+    datePattern: 'YYYY-MM-DD',
+    level: 'error',
+  });
+
+  return createLogger({
     level: 'info',
     format: format.combine(
       format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
       format.printf(info => `[${info.timestamp}] ${info.level.toUpperCase()}: ${info.message}`)
     ),
-    transports: [infoRotate],
+    transports: [infoRotate, errorRotate],
   });
-
-  // Lazy error transport
-  let errorTransportAdded = false;
-
-  logger.on('error', (err) => {
-    if (!errorTransportAdded) {
-      const errorRotate = new transports.DailyRotateFile({
-        dirname: dirPath,
-        filename: `${name}-error-%DATE%.log`,
-        datePattern: 'YYYY-MM-DD',
-        level: 'error',
-      });
-      logger.add(errorRotate);
-      errorTransportAdded = true;
-    }
-  });
-
-  return logger;
 }
 
-// Create two loggers
+// Create loggers for both systems
 const logger = {
-  upstream: createLazyLogger('upstream', logDirs.upstream),
-  downstream: createLazyLogger('downstream', logDirs.downstream),
+  upstream: createLoggerWithErrorFile('upstream', logDirs.upstream),
+  downstream: createLoggerWithErrorFile('downstream', logDirs.downstream),
 };
 
 module.exports = logger;

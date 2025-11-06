@@ -52,7 +52,7 @@ app.get('/generate-token/:client', async (req, res) => {
       expires_at: result.dbRecord.expires_at
     });
   } catch (err) {
-    logger.downstream.error('Error generating token:', err);
+    logger.downstream.error(`Error generating token: ${err.message}`);
     res.status(500).json({ message: 'Error generating token', error: err.message });
   }
 });
@@ -64,7 +64,7 @@ app.post('/revoke-token/:client', async (req, res) => {
     await revokeByClientName(client);
     res.json({ message: `All tokens for client "${client}" have been revoked.` });
   } catch (err) {
-    logger.downstream.error('Error revoking token:', err);
+    logger.downstream.error(`Error revoking token: ${err.message}`);
     res.status(500).json({ message: 'Error revoking token', error: err.message });
   }
 });
@@ -73,10 +73,37 @@ app.post('/revoke-token/:client', async (req, res) => {
 app.use('/', founderhq);
 
 // =========================
-// Create HTTPS Server
+// HTTPS Server Setup
 // =========================
-https.createServer(sslOptions, app).listen(PORT, HOST, () => {
-  const message = ` BEST Downstream HTTPS Server running at https://${HOST}:${PORT}`;
+const server = https.createServer(sslOptions, app);
+
+//  Log successful SSL handshakes
+server.on('secureConnection', (tlsSocket) => {
+  const cert = tlsSocket.getPeerCertificate();
+  const clientIP = tlsSocket.remoteAddress || 'Unknown IP';
+  logger.downstream.info(`SSL handshake established with ${clientIP}`);
+
+  if (cert && Object.keys(cert).length > 0) {
+    logger.downstream.info(
+      `Client certificate info: CN=${cert.subject?.CN || 'N/A'}, Issuer=${cert.issuer?.CN || 'N/A'}`
+    );
+  }
+});
+
+//  Log failed SSL handshakes
+server.on('sslClientError', (err, socket) => {
+  const clientIP = socket.remoteAddress || 'Unknown IP';
+  logger.downstream.error(`SSL client error from ${clientIP}: ${err.message}`);
+  socket.destroy(); // close the bad connection safely
+});
+
+// ⚠️ General HTTPS server errors (non-handshake)
+server.on('error', (err) => {
+  logger.downstream.error(`Server error: ${err.message}`, { stack: err.stack });
+});
+
+// Start HTTPS server
+server.listen(PORT, HOST, () => {
+  const message = `BEST Downstream HTTPS Server running at https://${HOST}:${PORT}`;
   logger.downstream.info(message);
-  // console.log(message);
 });

@@ -238,16 +238,40 @@ async function checkOrderStatus(input) {
     
                     await pool.query(rawResQuery, rawResVal);
     
+                    delete formatted_res.result.allocated
+                    delete formatted_res.result.assemblyallocated
+                    delete formatted_res.result.assemblyshippingquantity
+                    delete formatted_res.result.firstlegallocated
+                    delete formatted_res.result.firstlegshippingquantity
+                    delete formatted_res.result.manualshippingquantity
+                    delete formatted_res.result.orderallocated
+                    delete formatted_res.result.purchaseshippingquantity
+                    delete formatted_res.result.returnshippingquantity
+                    delete formatted_res.result.shippingquantity
+                    delete formatted_res.result.total
+                    delete formatted_res.result.transferallocated
+                    delete formatted_res.result.transfershippingquantity
+                    delete formatted_res.result.unavailable
+                    delete formatted_res.result.warehousecode
+
+
                     return await formatted_res;
 
     
     
                 }else{ // 0 && 1
-    
+                    const errorcode = toLowerCaseKeys(bizContentState.errorCode).trim();
+
+                    let responseCode = "1"; // default value
+
+                    if (errorcode.startsWith('SKU_')) {
+                    responseCode = "2";
+                    } 
+                    
                     //create SMF RESPONSE
                     const formatted_res = {
                     "state" : "failure",
-                    "responsecode" : "1",
+                    "responsecode" : responseCode,
                     "response_date" : getCurrentDateTime()
                     };
     
