@@ -3,6 +3,7 @@ const session = require('express-session');
 const { v4: uuidv4 } = require('uuid'); // for generating unique IDs
 const { processSalesOrder } = require('./salesorder');
 const { checkOrderStatus } = require('./checkinventory');
+const { checkStatus } = require('./checkorder');
 const logger = require('./logger'); // <-- import logger
 
 
@@ -61,6 +62,8 @@ function sessionHandler(routeName) {
 // Apply middleware for both routes
 app.use('/salesorder', sessionHandler('salesorder'));
 app.use('/checkinventory', sessionHandler('checkinventory'));
+app.use('/checkorder', sessionHandler('checkorder'));
+
 
 // Route
 app.post('/salesorder',  async (req, res) => {
@@ -99,6 +102,24 @@ app.post('/checkinventory',  async (req, res) => {
   }
 });
 
+app.post('/checkorder',  async (req, res) => {
+  try {
+    const inputData = req.body;
+
+    logger.upstream.info(`Receive request from downstream: ${JSON.stringify(inputData, null, 2)}`);
+
+
+    const result = await checkStatus(inputData);
+    logger.upstream.info(`Return response to downstream: ${JSON.stringify(result)}`);
+
+    res.json(result);
+  } catch (err) {
+    logger.upstream.error('Error processing at check status :', err);
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+
 // Optional: test GET
 app.get('/salesorder', (req, res) => {
     res.json({ message: 'SalesOrder route is working!' });
@@ -106,6 +127,10 @@ app.get('/salesorder', (req, res) => {
 
 app.get('/checkinventory', (req, res) => {
     res.json({ message: 'Check Inventory route is working!' });
+});
+
+app.get('/checkorder', (req, res) => {
+    res.json({ message: 'Check orderS route is working!' });
 });
 
 app.listen(port, () => {
