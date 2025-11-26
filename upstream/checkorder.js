@@ -1,8 +1,8 @@
-const pool = require('./db');
+const pool = require('../db');
 const crypto = require("crypto");
 const axios = require('axios');
 const FormData = require('form-data');
-const logger = require('./logger'); 
+const logger = require('../logger'); 
 
 
 const appSecret = "9ced6df12e6ebcba54b2877677640165";
@@ -186,9 +186,9 @@ async function checkStatus(input){
                         const result = {
                             "onlineordernumber" : bizContentResult.onlineordernumber,
                             "ordernumber" : bizContentResult.ordernumber,
-                            "status" : bizContentResult.status,
-                            "carrier" : bizContentResult.carrier,
-                            "trackingNumber" : bizContentResult.trackingnumber
+                            "status" : bizContentResult.status || null,
+                            "carrier" : bizContentResult.carrier || null,
+                            "trackingNumber" : bizContentResult.trackingnumber || null
                         }
 
                         //create SMF RESPONSE

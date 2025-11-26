@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const session = require('express-session');
 const { generateTokenForClient, revokeByClientName } = require('./auth');
-const founderhq = require('./founderhq');
+const founderhq = require('./founderhq-downstream/founderhq');
 const logger = require('./logger');
 
 const app = express();

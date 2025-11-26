@@ -1,8 +1,8 @@
-const pool = require('./db');
+const pool = require('../db');
 const crypto = require("crypto");
 const axios = require('axios');
 const FormData = require('form-data');
-const logger = require('./logger'); // <-- import logger
+const logger = require('../logger'); // <-- import logger
 
 
 const appSecret = "9ced6df12e6ebcba54b2877677640165";
@@ -299,7 +299,7 @@ async function reqToERP(data, uuid) {
       form,
       { headers: form.getHeaders() }
     );
-
+    
     logger.upstream.info(`Response from BEST ERP: ${JSON.stringify(response.data, null, 2)}`);
 
     const baseRes = `
@@ -328,20 +328,37 @@ async function reqToERP(data, uuid) {
       if (a["state"] == "success" ){ //  0 & 0
   
         const newData = toLowerCaseKeys(a["result"]);
-  
         try{
+          let resQuery = `
+          INSERT INTO so_bizcontent_result
+            (base_req_uuid, ordernumber, onlineordernumber, shop, status, warehouse, wmsstatus, totalamount, freight, carrier, platform, trackingnumber,paymentmethod,codpayamount,buyer,skulist,tag,state,onlinestatus)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb, $16::jsonb, $17::jsonb, $18, $19);
+          `;  
   
           // INSERT INTO so_bizcontent_result
-          await dynamicInsert(pool, 'so_bizcontent_result', {
-            base_req_uuid: data.uuid,
-            ...newData,
-            buyer: JSON.stringify(newData.buyer ?? {}),
-            skulist: JSON.stringify(newData.skulist ?? []),
-            tag: JSON.stringify(newData.tag ?? {}),
-            ordercustomfieldvaluevolist: JSON.stringify(newData.ordercustomfieldvaluevolist ?? []),
-            subordernumberlist: JSON.stringify(newData.subordernumberlist ?? [])
-          });
+          let resVal = [
+            data.uuid,
+            newData.ordernumber,
+            newData.onlineordernumber,
+            newData.shop,
+            newData.status || "",
+            newData.warehouse || "",
+            newData.wmsstatus || "",
+            Number(newData.totalamount) || 0,
+            Number(newData.freight) || 0,
+            newData.carrier || "",
+            newData.platform  || "",
+            newData.trackingnumber || "",
+            newData.paymentmethod || "",
+            Number(newData.codpayamount) || 0,
+            JSON.stringify(newData.buyer ?? {}),
+            JSON.stringify(newData.skulist ?? []),
+            JSON.stringify(newData.tag ?? []),
+            "success",
+            newData.onlinestatus
+          ];
   
+          await pool.query(resQuery, resVal);
           const onlineordernumber = a.result.onlineOrderNumber;
   
           // INSERT INTO so_result_tag
@@ -378,7 +395,7 @@ async function reqToERP(data, uuid) {
           }
   
         }catch (err) {
-          logger.upstream.error('Error inserting into bizContent:', err.response ? err.response.data : err.message);
+          logger.upstream.error('Error inserting into bizContent:', err.stack || err);
         }
   
   
@@ -566,8 +583,6 @@ function toLowerCaseKeys(obj) {
   return obj;
 }
 
-
-// cache table columns so you don’t query information_schema every time
 const tableColumnsCache = {};
 
 async function getTableColumns(pool, tableName) {
@@ -605,8 +620,21 @@ async function dynamicInsert(pool, tableName, data) {
   const values = Object.values(filtered);
 
   const q = `INSERT INTO ${tableName} (${fields}) VALUES (${placeholders}) RETURNING *;`;
-  const res = await pool.query(q, values);
-  return res.rows[0]; // return full inserted row
+  try {
+    const res = await pool.query(q, values);
+    return res.rows[0];
+  } catch (err) {
+    // 🔥 Log everything we need to debug
+    logger.upstream.error(`Dynamic Insert Error for table ${tableName}`);
+    logger.upstream.error(`Query: ${q}`);
+    logger.upstream.error(`Values: ${JSON.stringify(values, null, 2)}`);
+    logger.upstream.error(`Postgres Error: ${err.message}`);
+    logger.upstream.error(`Detail: ${err.detail}`);
+    logger.upstream.error(`Code: ${err.stack}`);
+
+    // Optional: throw again so the caller sees it too
+    throw err;
+  }
 }
 
 

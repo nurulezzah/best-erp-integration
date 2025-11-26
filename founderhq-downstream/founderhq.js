@@ -3,8 +3,8 @@ const express = require('express');
 const router = express.Router();
 const { processReq } = require('./founderhq-so');
 const { getInventory } = require('./founderhq-inventory');
-const logger = require('./logger');
-const { verifyTokenMiddleware } = require('./auth'); // protect routes
+const logger = require('../logger');
+const { verifyTokenMiddleware } = require('../auth'); // protect routes
 const { v4: uuidv4 } = require('uuid');
 
 

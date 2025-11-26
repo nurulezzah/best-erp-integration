@@ -1,8 +1,8 @@
-const pool = require('./db');
+const pool = require('../db');
 const crypto = require("crypto");
 const axios = require('axios');
 const FormData = require('form-data');
-const logger = require('./logger'); 
+const logger = require('../logger'); 
 
 
 const appSecret = "9ced6df12e6ebcba54b2877677640165";
