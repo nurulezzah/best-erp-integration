@@ -1,9 +1,9 @@
 const express = require('express');
 const session = require('express-session');
 const { v4: uuidv4 } = require('uuid'); // for generating unique IDs
-const { processSalesOrder } = require('./salesorder');
-const { checkOrderStatus } = require('./checkinventory');
-const { checkStatus } = require('./checkorder');
+const { processSalesOrder } = require('./upstream/salesorder');
+const { checkOrderStatus } = require('./upstream/checkinventory');
+const { checkStatus } = require('./upstream/checkorder');
 const logger = require('./logger'); // <-- import logger
 
 

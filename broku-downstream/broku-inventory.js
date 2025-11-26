@@ -1,6 +1,6 @@
-const pool = require('./db');
+const pool = require('../db');
 const axios = require('axios');
-const logger = require('./logger'); 
+const logger = require('../logger'); 
 
 function getCurrentDateTime() {
   const now = new Date();
