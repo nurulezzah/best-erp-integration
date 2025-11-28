@@ -105,5 +105,6 @@ server.on('error', (err) => {
 // Start HTTPS server
 server.listen(PORT, HOST, () => {
   const message = `BEST Downstream HTTPS Server running at https://${HOST}:${PORT}`;
+  console.log(message);
   logger.downstream.info(message);
 });

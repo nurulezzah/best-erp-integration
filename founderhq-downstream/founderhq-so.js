@@ -95,7 +95,7 @@ async function processReq(input){
           appid:appid,
           servicetype:servicetype,
           shop:JSON.parse(shop),
-          paymentmethod:"COD",
+          paymentmethod:"PAY_ONLINE",
           codpayamount:0
       });
 
