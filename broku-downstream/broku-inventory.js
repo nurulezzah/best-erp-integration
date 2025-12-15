@@ -22,7 +22,7 @@ async function getInventory(input){
 
   //insert raw data into db
   const query = `
-      INSERT INTO founderhq_inv_downstream_input_raw (rawdata)
+      INSERT INTO broku_inv_downstream_input_raw (rawdata)
       VALUES ($1::jsonb)
       RETURNING uuid;
   `;
@@ -49,7 +49,7 @@ async function getInventory(input){
 
       const lowercaseInput = toLowerCaseKeys(input);
 
-      const getFormatted = await dynamicInsert(pool, 'founderhq_inv_downstream_input_formatted', {
+      const getFormatted = await dynamicInsert(pool, 'broku_inv_downstream_input_formatted', {
           rawuuid: rawUuid,
           ...lowercaseInput
       });
@@ -57,7 +57,7 @@ async function getInventory(input){
       const formattedUuid = getFormatted.uuid;
 
 
-      const getOutputFormatted = await dynamicInsert(pool, 'founderhq_inv_downstream_output_formatted', {
+      const getOutputFormatted = await dynamicInsert(pool, 'broku_inv_downstream_output_formatted', {
           downstream_input_uuid: formattedUuid,
           appid:appid,
           servicetype:servicetype,
@@ -82,7 +82,7 @@ async function getInventory(input){
 
 
       const query2 = `
-          INSERT INTO founderhq_inv_downstream_output_raw (rawdata, downstream_output_uuid)
+          INSERT INTO broku_inv_downstream_output_raw (rawdata, downstream_output_uuid)
           VALUES ($1::jsonb,$2)
           RETURNING *;
       `;
@@ -105,7 +105,7 @@ async function getInventory(input){
         logger.downstream.info(`Response from BEST ERP: ${JSON.stringify(response.data, null, 2)}`);
 
         const rawRes = `
-          UPDATE founderhq_inv_downstream_output_raw
+          UPDATE broku_inv_downstream_output_raw
           SET rawresponse = $1,
               response_date = $2
           WHERE uuid = $3;
@@ -119,7 +119,7 @@ async function getInventory(input){
 
         await pool.query(rawRes, rawResVal);
         const baseRes = `
-          UPDATE founderhq_inv_downstream_output_formatted
+          UPDATE broku_inv_downstream_output_formatted
           SET state = $1,
               responsecode = $2,
               response_date = $3
@@ -137,7 +137,7 @@ async function getInventory(input){
 
 
         const baseInputRes = `
-          UPDATE founderhq_inv_downstream_input_formatted
+          UPDATE broku_inv_downstream_input_formatted
           SET state = $1,
               responsecode = $2,
               response_date = $3
@@ -155,7 +155,7 @@ async function getInventory(input){
 
 
         const rawInputRes = `
-          UPDATE founderhq_inv_downstream_input_raw
+          UPDATE broku_inv_downstream_input_raw
           SET rawresponse = $1,
               response_date = $2
           WHERE uuid = $3;
@@ -186,7 +186,7 @@ async function getInventory(input){
       };
 
       const rawInputRes = `
-        UPDATE founderhq_inv_downstream_input_raw
+        UPDATE broku_inv_downstream_input_raw
         SET rawresponse = $1,
             response_date = $2
         WHERE uuid = $3;
